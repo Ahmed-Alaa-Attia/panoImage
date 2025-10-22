@@ -11,7 +11,7 @@ const RotateImg = () => {
 
   const [posPct, setPosPct] = useState(50);
   const [motionReady, setMotionReady] = useState(false);
-  const maxTiltDeg = 20;
+  const maxTiltDeg = 25;
 
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const gammaToPos = (gamma) => {
@@ -66,7 +66,7 @@ const RotateImg = () => {
           backgroundRepeat: "no-repeat",
           backgroundSize: "auto 100%",
           backgroundPosition: `${posPct}% 50%`,
-          transition: "background-position 950ms ease-in-out 0",
+          transition: "background-position 1200ms ease-in-out 0",
         }}
       />
 
