@@ -1,6 +1,3 @@
-// RotateImg.jsx
-"use client";
-
 import { useEffect, useRef, useState } from "react";
 import useGyroscope from "react-hook-gyroscope";
 
@@ -11,7 +8,6 @@ const RotateImg = () => {
   const [motionReady, setMotionReady] = useState(false); // keep your iOS gate
   const [posPct, setPosPct] = useState(50); // 0..100 background-position-x
 
-  // --- match Tailwind sm ---
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 640);
     onResize();
@@ -19,21 +15,16 @@ const RotateImg = () => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // --- Gyroscope hook: rotation rates about device axes (rad/s) ---
-  // We'll use y-axis ONLY (as requested).
   const gyro = useGyroscope({ frequency: 60 });
 
-  // --- Inertial pan via y-axis rotation ---
-  const velRef = useRef(0); // velocity in % per frame
+  const velRef = useRef(0);
   const rafIdRef = useRef(null);
 
-  // Tuning knobs (adjust to taste)
   const GAIN = 3.0; // how strongly y (rad/s) nudges velocity
   const FRICTION = 0.92; // 0..1; higher = longer glide
   const DEAD_Y = 0.03; // rad/s; ignore tiny wrist jitter
   const MAX_STEP = 1.2; // cap per-frame position change in % to avoid spikes
 
-  // iOS motion permission (kept, though the hook also prompts where supported)
   const requestIOSPermission = async () => {
     try {
       const DME = window.DeviceMotionEvent;
