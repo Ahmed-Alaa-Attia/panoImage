@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const RotateImg = () => {
   const [isMobile, setIsMobile] = useState(false);
@@ -40,11 +40,55 @@ const RotateImg = () => {
     }
   };
 
+  /* =========================
+     ✨ Smooth tween additions
+     ========================= */
+  const targetRef = useRef(50); // where we want to go (0..100)
+  const posRef = useRef(50); // current animated position (0..100)
+  const RAF_TAU = 0.33; // time constant (seconds). ~3*tau ≈ time to ~95% → ~1s
+  const rafIdRef = useRef(null);
+
+  // Start the rAF loop once on mount
+  useEffect(() => {
+    let last = performance.now();
+
+    const tick = (now) => {
+      const dt = (now - last) / 1000;
+      last = now;
+
+      // Exponential smoothing: alpha = 1 - exp(-dt/tau)
+      const alpha = 1 - Math.exp(-dt / RAF_TAU);
+
+      // Move pos toward target with time-based smoothing
+      posRef.current =
+        posRef.current + (targetRef.current - posRef.current) * alpha;
+
+      // Push to React state (rounded a bit to reduce tiny re-renders)
+      setPosPct((prev) => {
+        const next = posRef.current;
+        // avoid extra renders if change is negligible
+        return Math.abs(next - prev) < 0.05 ? prev : next;
+      });
+
+      rafIdRef.current = requestAnimationFrame(tick);
+    };
+
+    rafIdRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafIdRef.current);
+  }, []);
+
+  // Keep posRef in sync if posPct changes externally (initial state etc.)
+  useEffect(() => {
+    posRef.current = posPct;
+    targetRef.current = posPct;
+  }, []); // run once
+
   useEffect(() => {
     if (!isMobile || !motionReady) return;
     const onOrient = (e) => {
       const gamma = e.gamma || 0;
-      setPosPct(gammaToPos(gamma));
+      // 🚀 instead of snapping, just update the target
+      targetRef.current = gammaToPos(gamma);
     };
     window.addEventListener("deviceorientation", onOrient, true);
     return () =>
@@ -66,7 +110,8 @@ const RotateImg = () => {
           backgroundRepeat: "no-repeat",
           backgroundSize: "auto 100%",
           backgroundPosition: `${posPct}% 50%`,
-          transition: "background-position 1s ease-out",
+          // optional: you can keep this subtle or remove it since we're animating in JS
+          transition: "background-position 60ms linear",
         }}
       />
 
