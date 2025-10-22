@@ -59,13 +59,13 @@ const RotateImg = () => {
       />
 
       <div
-        className="block sm:hidden w-full h-full overflow-hidden"
+        className="block sm:hidden w-full h-full overflow-hidden will-change-transform"
         style={{
           backgroundImage: 'url("./panorama.jpg")',
           backgroundRepeat: "no-repeat",
           backgroundSize: "auto 100%",
           backgroundPosition: `${posPct}% 50%`,
-          transition: "background-position 5ms ease-out",
+          transition: "background-position 1ms ease-out",
         }}
       />
 
