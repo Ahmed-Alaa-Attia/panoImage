@@ -1,11 +1,9 @@
-import { useOrientation } from "@uidotdev/usehooks";
-import { useEffect, useRef, useState } from "react";
-import useGyroscope from "react-hook-gyroscope";
+import { useEffect, useState } from "react";
 
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
-export default function RotateImg() {
-  /* 1) breakpoint alignment with Tailwind sm */
+const RotateImg = () => {
+  // --- Desktop vs mobile (match Tailwind sm = 640px) ---
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 640);
@@ -14,10 +12,11 @@ export default function RotateImg() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  /* 2) pano position (0..100) and iOS permission gate */
+  // --- Pano position (0..100) + iOS permission flag ---
   const [posPct, setPosPct] = useState(50);
   const [motionReady, setMotionReady] = useState(false);
 
+  // iOS 13+ permission gate (kept as-is)
   const requestIOSPermission = async () => {
     try {
       const DME = window.DeviceMotionEvent;
@@ -38,85 +37,60 @@ export default function RotateImg() {
     }
   };
 
-  /* 3) motion source: gyroscope (rotation rates, rad/s) */
-  const gyro = useGyroscope({ frequency: 60 });
-
-  /* 4) orientation helper: useOrientation (type & angle) */
-  const { type, angle } = useOrientation(); // e.g., 'portrait-primary', 'landscape-secondary', angle 0/90/180/270
-  const isLandscape = (type || "").toLowerCase().startsWith("landscape");
-
-  // Base direction: in landscape-right many devices report "forward twist" as opposite.
-  // Tweak this logic if you find direction inverted on a specific device.
-  let ORIENT_DIR = 1;
-  if (isLandscape) {
-    // common case: angle === 90 → landscape-right
-    ORIENT_DIR = angle === 90 ? -1 : 1;
-  }
-
-  /* 5) inertial pan using y-axis only */
-  const velRef = useRef(0); // %/frame velocity
-  const rafRef = useRef(null);
-
+  // --- Rotation-rate → pan (Y axis only) ---
   // Tuning knobs
-  const BASE_SENSE = 1; // set -1 if you prefer global inversion
-  const GAIN = 3.0; // how strongly y (rad/s) nudges velocity
-  const FRICTION = 0.92; // 0..1; closer to 1 = longer coast
-  const DEAD_Y = 0.03; // rad/s dead-zone to ignore micro jitter
-  const MAX_STEP = 1.2; // cap per-frame pos change (%)
+  const ROT_GAIN = 0.03; // how much each deg/s nudges the pano per event
+  const ROT_DEAD = 0.5; // ignore tiny rotation rates (deg/s)
+  const SENSE = 1; // set to -1 if direction feels inverted on your device
 
-  // rAF loop: apply velocity and friction
   useEffect(() => {
-    const tick = () => {
+    if (!isMobile || !motionReady) return;
+
+    const onMotion = (e) => {
+      const rr = e.rotationRate || {};
+      // rotation around Y axis (deg/s). Spec calls this "gamma" in rotationRate.
+      const yRate = rr.gamma ?? 0;
+
+      if (Math.abs(yRate) < ROT_DEAD) return;
+
+      // incrementally move background based on rotation rate
       setPosPct((prev) => {
-        const step = clamp(velRef.current, -MAX_STEP, MAX_STEP);
-        const next = clamp(prev + step, 0, 100);
-        return Math.abs(next - prev) < 0.02 ? prev : next;
+        const next = prev + SENSE * yRate * ROT_GAIN;
+        return clamp(next, 0, 100);
       });
-
-      velRef.current *= FRICTION;
-      rafRef.current = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, []);
 
-  // Feed gyroscope y → velocity (no tilt, just wrist twist)
-  useEffect(() => {
-    if (!isMobile || !motionReady || gyro.error) return;
+    window.addEventListener("devicemotion", onMotion, { passive: true });
 
-    const id = setInterval(() => {
-      const y = gyro.y ?? 0; // rad/s about Y axis
-      if (Math.abs(y) < DEAD_Y) return; // dead-zone
-      const dir = BASE_SENSE * ORIENT_DIR; // orientation-aware sign
-      velRef.current += dir * y * GAIN;
-    }, 16); // ~60Hz
-
-    return () => clearInterval(id);
-  }, [isMobile, motionReady, gyro.error, gyro.y, ORIENT_DIR]);
+    return () => {
+      window.removeEventListener("devicemotion", onMotion, { passive: true });
+    };
+  }, [isMobile, motionReady]);
 
   return (
     <div className="relative w-screen h-dvh">
-      {/* Desktop hero */}
+      {/* Desktop: 1920×1080 hero */}
       <img
         src="./testImg.jpg"
-        alt=""
         className="hidden sm:block w-full h-full object-cover"
         draggable={false}
+        alt=""
       />
 
-      {/* Mobile pano (backgroundPositionX driven by posPct 0..100) */}
+      {/* Mobile: pano background driven by rotation (no tilt) */}
       <div
         className="block sm:hidden w-full h-full overflow-hidden will-change-transform"
         style={{
-          backgroundImage: 'url("./testImg.jpg")', // or a wider panorama image
+          backgroundImage: 'url("./testImg.jpg")', // use a wider pano if you have one
           backgroundRepeat: "no-repeat",
           backgroundSize: "auto 100%",
           backgroundPosition: `${posPct}% 50%`,
-          transition: "none", // JS/rAF handles smoothness
+          // keep this short/linear so it doesn't fight the incremental updates
+          transition: "background-position 60ms linear",
         }}
       />
 
-      {/* iOS enable motion */}
+      {/* iOS: enable motion */}
       {isMobile && !motionReady && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
           <button
@@ -127,13 +101,8 @@ export default function RotateImg() {
           </button>
         </div>
       )}
-
-      {/* Optional hint if gyro missing */}
-      {isMobile && motionReady && gyro.error && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/80">
-          No gyroscope available on this device.
-        </div>
-      )}
     </div>
   );
-}
+};
+
+export default RotateImg;
