@@ -9,9 +9,16 @@ const RotateImg = () => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // tilt-only pano control
   const [posPct, setPosPct] = useState(50); // 0..100 background-position-x
   const [motionReady, setMotionReady] = useState(false);
-  const gammaToPos = (gamma = 0) => ((gamma + 90) / 180) * 100;
+  const maxTiltDeg = 90;
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+  const gammaToPos = (gamma) => {
+    const g = clamp(gamma ?? 0, -maxTiltDeg, maxTiltDeg);
+    const norm = (g + maxTiltDeg) / (2 * maxTiltDeg);
+    return norm * 100; // 0..100
+  };
 
   const requestIOSPermission = async () => {
     try {
