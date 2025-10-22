@@ -1,26 +1,25 @@
-// RotateImg.jsx
-import gsap from "gsap";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
-
-export default function RotateImg() {
-  // --- Desktop vs mobile (align with Tailwind sm = 640px) ---
+const RotateImg = () => {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    const mql = window.matchMedia("(max-width: 639.98px)");
-    const onChange = (e) => setIsMobile(e.matches);
-    setIsMobile(mql.matches);
-    mql.addEventListener?.("change", onChange);
-    mql.addListener?.(onChange);
-    return () => {
-      mql.removeEventListener?.("change", onChange);
-      mql.removeListener?.(onChange);
-    };
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // --- iOS permission ---
+  const [posPct, setPosPct] = useState(50);
   const [motionReady, setMotionReady] = useState(false);
+  const maxTiltDeg = 45;
+
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+  const gammaToPos = (gamma) => {
+    const g = clamp(gamma ?? 0, -maxTiltDeg, maxTiltDeg);
+    const norm = (g + maxTiltDeg) / (2 * maxTiltDeg);
+    return norm * 100;
+  };
+
   const requestIOSPermission = async () => {
     try {
       const DME = window.DeviceMotionEvent;
@@ -28,90 +27,46 @@ export default function RotateImg() {
       if (DME && typeof DME.requestPermission === "function") {
         const r = await DME.requestPermission();
         if (r === "granted") setMotionReady(true);
-      } else if (DOE && typeof DOE.requestPermission === "function") {
+        return;
+      }
+      if (DOE && typeof DOE.requestPermission === "function") {
         const r = await DOE.requestPermission();
         if (r === "granted") setMotionReady(true);
-      } else {
-        setMotionReady(true);
+        return;
       }
+      setMotionReady(true);
     } catch {
       setMotionReady(false);
     }
   };
 
-  // --- Tilt mapping: small tilts map to full pan ---
-  const maxTiltDeg = 30; // user tilts ±30° to reach the ends
-  const gammaToPos = (gamma = 0) => {
-    const g = clamp(gamma, -maxTiltDeg, maxTiltDeg);
-    const norm = (g + maxTiltDeg) / (2 * maxTiltDeg); // 0..1
-    return norm * 100; // 0..100 (%)
-  };
-
-  // --- GSAP-controlled CSS var on the mobile pane ---
-  const mobilePaneRef = useRef(null);
-  const quickToRef = useRef(null);
-
-  // initialize the CSS var and create the GSAP quickTo setter when mobile pane mounts
   useEffect(() => {
-    if (!isMobile || !mobilePaneRef.current) return;
-    // set initial position to center (50%)
-    gsap.set(mobilePaneRef.current, { "--panX": "50%" });
-
-    // create a quickTo for the CSS variable --panX
-    quickToRef.current = gsap.quickTo(mobilePaneRef.current, "--panX", {
-      duration: 1, // ≈ time to reach target (tweak: 0.6–1.2)
-      ease: "power3.out", // smooth, ScrollSmoother-like
-      // You can also use overwrite: "auto" if you want to cancel prior tweens
-    });
-  }, [isMobile]);
-
-  // --- Device orientation listener: set GSAP target, not React state ---
-  useEffect(() => {
-    if (!isMobile || !motionReady || !quickToRef.current) return;
-
-    const DEAD = 1.2; // degrees; ignore tiny jitters
+    if (!isMobile || !motionReady) return;
     const onOrient = (e) => {
-      const gamma = e.gamma ?? 0; // left/right tilt
-      if (Math.abs(gamma) < DEAD) return;
-
-      const target = clamp(gammaToPos(gamma), 0, 100); // map → 0..100
-      // tween the CSS var toward the new target (GSAP handles the glide)
-      quickToRef.current(`${target}%`);
+      const gamma = e.gamma || 0;
+      setPosPct(gammaToPos(gamma));
     };
-
-    window.addEventListener("deviceorientation", onOrient, { passive: true });
-
-    // set a starting target so it doesn't wait for first event
-    quickToRef.current("50%");
-
+    window.addEventListener("deviceorientation", onOrient, true);
     return () =>
-      window.removeEventListener("deviceorientation", onOrient, {
-        passive: true,
-      });
+      window.removeEventListener("deviceorientation", onOrient, true);
   }, [isMobile, motionReady]);
 
   return (
     <div className="relative w-screen h-dvh">
-      {/* DESKTOP: 1920x1080 hero */}
       <img
         src="./testImg.jpg"
-        alt=""
         className="hidden sm:block w-full h-full object-cover"
         draggable={false}
       />
 
-      {/* MOBILE: pano background driven by CSS var --panX (tweened by GSAP) */}
       <div
-        ref={mobilePaneRef}
         className="block sm:hidden w-full h-full overflow-hidden will-change-transform"
         style={{
-          backgroundImage: 'url("./panorama.jpg")',
+          backgroundImage: 'url("./testImg.jpg")',
           backgroundRepeat: "no-repeat",
           backgroundSize: "auto 100%",
-          // Use the CSS variable for background-position-x
-          backgroundPosition: "var(--panX, 50%) 50%",
-          // We let GSAP do the easing; keep CSS transition off (or very small) to avoid fighting
-          transition: "none",
+          backgroundPosition: `${posPct}% 50%`,
+          transition: "background-position 500ms ease-in-out 0",
         }}
       />
 
@@ -128,4 +83,6 @@ export default function RotateImg() {
       )}
     </div>
   );
-}
+};
+
+export default RotateImg;
