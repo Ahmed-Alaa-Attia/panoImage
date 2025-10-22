@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 const RotateImg = () => {
   const [isMobile, setIsMobile] = useState(false);
+  const deadZone = 2;
+
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 640);
     onResize();
@@ -11,7 +13,7 @@ const RotateImg = () => {
 
   const [posPct, setPosPct] = useState(50);
   const [motionReady, setMotionReady] = useState(false);
-  const maxTiltDeg = 30;
+  const maxTiltDeg = 25;
 
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const gammaToPos = (gamma) => {
@@ -44,6 +46,7 @@ const RotateImg = () => {
     if (!isMobile || !motionReady) return;
     const onOrient = (e) => {
       const gamma = e.gamma || 0;
+      if (Math.abs(gamma) < deadZone) return;
       setPosPct(gammaToPos(gamma));
     };
     window.addEventListener("deviceorientation", onOrient, true);
