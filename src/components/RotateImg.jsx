@@ -11,7 +11,7 @@ const RotateImg = () => {
 
   const [posPct, setPosPct] = useState(50);
   const [motionReady, setMotionReady] = useState(false);
-  const maxTiltDeg = 45;
+  const maxTiltDeg = 30;
 
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const gammaToPos = (gamma) => {
