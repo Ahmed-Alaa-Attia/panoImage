@@ -1,0 +1,90 @@
+import { useEffect, useState } from "react";
+
+const RotateImg = () => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // tilt-only pano control
+  const [posPct, setPosPct] = useState(50); // 0..100 background-position-x
+  const [motionReady, setMotionReady] = useState(false);
+  const maxTiltDeg = 30;
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+  const gammaToPos = (gamma) => {
+    const g = clamp(gamma ?? 0, -maxTiltDeg, maxTiltDeg);
+    const norm = (g + maxTiltDeg) / (2 * maxTiltDeg); // 0..1
+    return norm * 100; // 0..100
+  };
+
+  const requestIOSPermission = async () => {
+    try {
+      const DME = window.DeviceMotionEvent;
+      const DOE = window.DeviceOrientationEvent;
+      if (DME && typeof DME.requestPermission === "function") {
+        const r = await DME.requestPermission();
+        if (r === "granted") setMotionReady(true);
+        return;
+      }
+      if (DOE && typeof DOE.requestPermission === "function") {
+        const r = await DOE.requestPermission();
+        if (r === "granted") setMotionReady(true);
+        return;
+      }
+      setMotionReady(true);
+    } catch {
+      setMotionReady(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isMobile || !motionReady) return;
+    const onOrient = (e) => {
+      const gamma = e.gamma || 0;
+      setPosPct(gammaToPos(gamma));
+    };
+    window.addEventListener("deviceorientation", onOrient, true);
+    return () =>
+      window.removeEventListener("deviceorientation", onOrient, true);
+  }, [isMobile, motionReady]);
+
+  return (
+    <div className="relative w-screen h-dvh">
+      {/* desktop: full cover img */}
+      <img
+        src="./testImg.jpg"
+        className="hidden sm:block w-full h-full object-cover"
+        draggable={false}
+      />
+
+      {/* mobile: pano as background; tilt controls background-position-x */}
+      <div
+        className="block sm:hidden w-full h-full overflow-hidden"
+        style={{
+          backgroundImage: 'url("./panorama.jpg")',
+          backgroundRepeat: "no-repeat",
+          backgroundSize: "auto 100%", // full height; extra width for pan
+          backgroundPosition: `${posPct}% 50%`, // left↔right, centered vertically
+          transition: "background-position 120ms ease-out",
+        }}
+      />
+
+      {/* iOS: enable motion */}
+      {isMobile && !motionReady && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+          <button
+            onClick={requestIOSPermission}
+            className="px-4 py-2 rounded-xl bg-black/70 text-white text-sm backdrop-blur shadow"
+          >
+            Enable Motion Control
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RotateImg;
