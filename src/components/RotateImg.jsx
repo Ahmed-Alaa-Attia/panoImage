@@ -12,6 +12,8 @@ const RotateImg = () => {
   const [posPct, setPosPct] = useState(50);
   const [motionReady, setMotionReady] = useState(false);
   const maxTiltDeg = 30;
+  const DEAD = 2;
+
   const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
   const gammaToPos = (gamma) => {
     const g = clamp(gamma ?? 0, -maxTiltDeg, maxTiltDeg);
@@ -43,6 +45,9 @@ const RotateImg = () => {
     if (!isMobile || !motionReady) return;
     const onOrient = (e) => {
       const gamma = e.gamma || 0;
+
+      if (Math.abs(gamma) < DEAD) return;
+
       setPosPct(gammaToPos(gamma));
     };
     window.addEventListener("deviceorientation", onOrient, true);
@@ -59,13 +64,13 @@ const RotateImg = () => {
       />
 
       <div
-        className="block sm:hidden w-full h-full overflow-hidden will-change-transform"
+        className="block sm:hidden w-full h-full overflow-hidden "
         style={{
           backgroundImage: 'url("./panorama.jpg")',
           backgroundRepeat: "no-repeat",
           backgroundSize: "auto 100%",
           backgroundPosition: `${posPct}% 50%`,
-          transition: "background-position 1ms ease-out",
+          transition: "background-position ease-out",
         }}
       />
 
