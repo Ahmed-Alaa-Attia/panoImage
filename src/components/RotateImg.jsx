@@ -65,7 +65,7 @@ const RotateImg = () => {
           backgroundRepeat: "no-repeat",
           backgroundSize: "auto 100%",
           backgroundPosition: `${posPct}% 50%`,
-          transition: "background-position ease-out",
+          transition: "background-position 5ms ease-out",
         }}
       />
 
