@@ -49,7 +49,7 @@ const RotateImg = () => {
     window.addEventListener("deviceorientation", onOrient, true);
     return () =>
       window.removeEventListener("deviceorientation", onOrient, true);
-  }, [isMobile, motionReady]);
+  }, [isMobile, motionReady ]);
 
   return (
     <div className="relative w-screen h-dvh">
