@@ -49,25 +49,23 @@ const RotateImg = () => {
     window.addEventListener("deviceorientation", onOrient, true);
     return () =>
       window.removeEventListener("deviceorientation", onOrient, true);
-  }, [isMobile, motionReady ]);
+  }, [isMobile, motionReady]);
 
   return (
     <div className="relative w-screen h-dvh">
-      {/* desktop: full cover img */}
       <img
         src="./testImg.jpg"
         className="hidden sm:block w-full h-full object-cover"
         draggable={false}
       />
 
-      {/* mobile: pano as background; tilt controls background-position-x */}
       <div
         className="block sm:hidden w-full h-full overflow-hidden"
         style={{
           backgroundImage: 'url("./panorama.jpg")',
           backgroundRepeat: "no-repeat",
-          backgroundSize: "auto 100%", // full height; extra width for pan
-          backgroundPosition: `${posPct}% 50%`, // left↔right, centered vertically
+          backgroundSize: "auto 100%",
+          backgroundPosition: `${posPct}% 50%`,
           transition: "background-position 120ms ease-out",
         }}
       />
